@@ -1,7 +1,6 @@
 import { MongoClient } from 'mongodb'
 
-//const uri = process.env.MONGODB_URI
-const uri = "mongodb+srv://christer:Ice278787@oerdev.bqfcd.mongodb.net/assessment?retryWrites=true&w=majority"
+const uri = process.env.MONGODB_URI
 
 const options = {
     useUnifiedTopology: true,
@@ -21,7 +20,9 @@ export default function handler(req, res) {
 
         } catch (e) {
             console.error(e);
+            res.status(400).json("Error")
         } finally {
+            res.status(200).json(req.body)
             await client.close();
         }
 
@@ -29,5 +30,5 @@ export default function handler(req, res) {
 
     addResults().catch(console.error);
 
-    res.status(200).json(req.body)
+
 }
