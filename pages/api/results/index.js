@@ -9,14 +9,20 @@ const options = {
 
 export default function handler(req, res) {
     async function addResults() {
-        const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
-        await client.connect();
+        const client = new MongoClient(uri, options);
 
-        await client.db("assessment").collection("results").insertOne(req.body);
+        try {
+            await client.connect();
 
+            await client.db("assessment").collection("results").insertOne(req.body);
+
+        } catch (e) {
+            console.error(e);
+        }
         client.close();
 
     }
+
     addResults().catch(console.error);
 
     res.status(200).json(req.body)
