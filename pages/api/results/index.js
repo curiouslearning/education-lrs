@@ -4,6 +4,7 @@ const uri = process.env.MONGODB_URI
 const options = {
     useUnifiedTopology: true,
     useNewUrlParser: true,
+    connectTimeoutMS: 7000,
 }
 
 
@@ -18,8 +19,9 @@ export default function handler(req, res) {
 
         } catch (e) {
             console.error(e);
+        } finally {
+            await client.close();
         }
-        client.close();
 
     }
 
