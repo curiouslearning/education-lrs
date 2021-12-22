@@ -11,23 +11,21 @@ const {
   illegalStatementCollection
 } = fixtures;
 let handler;
-let mongoStub;
 let mongoMock;
 let findRes;
 beforeEach(() => {
   mongoMock = {
-    connect: sandbox.stub(),
-    db: sandbox.stub().resolves(mongoStub),
-    collection: sandbox.stub().resolves(mongoStub),
-    find: sandbox.stub().resolves(mongoStub),
-    sort: sandbox.stub().resolves(findRes),
-    insertOne: sandbox.stub().resolves(),
-    insertMany: sandbox.stub().resolves()
+    connect: sandbox.stub().resolves(),
+    db: sandbox.stub().callsFake(() => {return mongoMock}),
+    collection: sandbox.stub().callsFake(() => {return mongoMock}),
+    find: sandbox.stub().callsFake(() => {return mongoMock}),
+    sort: sandbox.stub().callsFake(() => {return mongoMock}),
+    toArray: sandbox.stub().callsFake(() => {return findRes}),
+    insertOne: sandbox.stub().resolves({acknowledged: true, insertedId: 'fake-id'}),
+    insertMany: sandbox.stub().resolves({acknowledged: true, insertedId: ['fake-1', 'fake-2']}),
+    close: sandbox.stub().resolves(),
   }
-  mongoStub = () => {
-    return mongoMock;
-  };
-  handler = proxyquire('../../../../pages/xAPI/statements/index', {
+  handler = proxyquire('../../../../../pages/api/xAPI/statements/index', {
     'mongodb': {
       MongoClient: sinon.stub().callsFake(() => { return mongoMock }),
       '@NoCallThru': true,
@@ -59,14 +57,15 @@ describe('[SETUP] /pages/xAPI/statements', () => {
     sandbox.restore();
   });
   it('successfully mocks the mongo client', (done) => {
+    findRes = statementCollection.statements;
     supertest(server)
       .get('/')
       .auth(usr, pw)
       .then((response) => {
         mongoMock.connect.should.have.been.calledOnce;
         done();
-      }).catch((err) => {
-        done(err);
+      }).catch((err)=> {
+        return done(err);
       });
   });
 
@@ -93,101 +92,80 @@ describe ('[POST] /pages/xAPI/statements', () => {
   });
 
   it('returns 404 on requests without authorization', (done) => {
-    const body = {
-      statements: statementCollection.statements
-    };
+    const body = {data: statementCollection.statements};
     supertest(server)
       .post('/')
       .send(body)
       .expect(404)
-      .expect('Content-Type', 'application/json')
-      .then((response) => {
+      .expect('Content-Type', /json/)
+      .end((err, res) => {
+        if (err) return done(err);
         done();
-      })
-      .catch((err) => {
-        done(err)
       })
   });
 
   it('returns 200 ok and the array of statements', (done) => {
-    const body = {
-      statements: statementCollection.statements
-    };
+    const body = {data:statementCollection.statements}
 
     supertest(server)
       .post('/')
       .auth(usr, pw)
       .send(body)
-      .expect('Content-Type', 'application/json')
+      .expect('Content-Type', /json/)
       .expect(200)
       .then((response) => {
         response.should.not.equal(undefined);
         done();
       })
       .catch((err) => {
-        done(err)
+        if (err) done(err);
       })
   });
 
   it('returns 204 No Content when given an existing Statement', (done) => {
     //TODO: COPY MONGO ERROR MESSAGE
-    mongoMock.insertOne.rejects("statement already exists");
-    const body = {
-      statements: [singleStatement.statement]
-    };
+    mongoMock.insertOne.rejects({name: "MongoServerError", code: 11000, keyValue: {_id: singleStatement.statement.id}});
+    mongoMock.toArray.callsFake(() => {return [singleStatement.statement]});
+    const body = {data: singleStatement.statement}
     supertest(server)
       .post('/')
       .auth(usr, pw)
       .send(body)
-      .expect('Content-Type', 'application/json')
       .expect(204)
-      .then((response) => {
+      .end((err, res) => {
+        if (err) return done(err);
         done();
-      })
-      .catch((err) => {
-        done(err)
       })
   });
 
   it('returns 409 Conflict when given a conflicting statement', (done) => {
     //TODO: COPY MONGO ERROR MESSAGE
-    mongoMock.insertOne.rejects("statementConflict");
-    const body = {
-      statements: [singleStatement.statement]
-    };
+    mongoMock.insertOne.rejects({name: "MongoServerError", code: 11000, keyValue: {_id: singleStatement.statement.id}});
+    mongoMock.toArray.callsFake(() => {return [singleStatement.statement]});
+    const body = {data: singleStatement.conflict}
     supertest(server)
       .post('/')
       .auth(usr, pw)
       .send(body)
-      .expect('Content-Type', 'application/json')
       .expect(409)
-      .then((response) => {
-        response.body.should.deepEqual(singleStatement.id);
+      .end((err, res) => {
+        if (err) return done(err);
         done();
-      })
-      .catch((err) => {
-        done(err)
       })
   });
 
   it('returns 400 if not all statement ids are unique', (done) => {
     //TODO: COPY MONGO ERROR MESSAGE
-    mongoMock.insertMany.rejects('not all statements are unique');
-    const body = {
-      statements: illegalStatementCollection
-    };
-
+    const body = {data: illegalStatementCollection.statements}
     supertest(server)
       .post('/')
       .auth(usr, pw)
       .send(body)
-      .expect('Content-Type', 'application/json')
+      .expect('Content-Type', /json/)
       .expect(400)
-      .then((response) => {
-        done();
-      })
-      .catch((err) => {
-        done(err)
+      .end((err, res) => {
+        if (err) return done(err)
+        done()
       })
   });
 });
@@ -212,22 +190,21 @@ describe('[GET] /pages/api/statements', () => {
     sandbox.restore();
   });
   it('returns 200 and a list of statements', (done) => {
-    findRes = statementList.statements;
+    findRes = statementCollection.statements;
     supertest(server)
       .get('/')
       .auth(usr, pw)
-      .set('Accept', 'application/json')
       .expect('Content-Type', /json/)
       .expect(200)
       .then((response) => {
         response.should.deep.equal({
-          statements: statementList.statements,
+          statements: statementCollection.statements,
           more: ''
         });
         done();
       })
       .catch((err) => {
-        done(err)
+        done(err);
       });
 });
 
@@ -238,11 +215,10 @@ describe('[GET] /pages/api/statements', () => {
       .auth(usr, pw)
       .expect('Content-Type', /json/)
       .expect(200)
-      .then((response) => {
-        response.statements.length.should.equal(0);
-        done();
-      }).catch((err) => {
-        done(err);
+      .expect({statements: []})
+      .end((err, res) => {
+        if (err) return done(err);
+        done()
       })
   })
 
@@ -251,9 +227,10 @@ describe('[GET] /pages/api/statements', () => {
       .get('/')
       .auth(usr, pw)
       .query({statementId: 'statement', voidedStatementId: 'voided'})
-      .expect(400, done)
-      .catch((err) => {
-        done(err);
+      .expect(400)
+      .end((err, res) => {
+        if (err) return done(err);
+        done();
       })
   });
 
@@ -262,16 +239,17 @@ describe('[GET] /pages/api/statements', () => {
         .get('/')
         .auth(usr, pw)
         .query({statementId: 'statement', verb: 'adlnet.gov/expapi/interacted'})
-        .expect(400, done)
-        .catch((err) => {
-          done(err);
+        .expect(400)
+        .end((err, res) => {
+          if (err) return done(err);
+          done();
         })
   });
 
   it('returns 404 on requests without authorization', (done) => {
     supertest(server)
       .get('/')
-      .expect(404, done)
+      .expect(404)
       .catch((err) => {
         done(err);
       })
@@ -284,10 +262,10 @@ describe('[GET] /pages/api/statements', () => {
       .expect(200)
       .expect(
         'X-Experience-API-Consistent-Through',
-        new Date(Date.now()).toISOString(),
-        done
-      ).catch((err) => {
-        done(err);
+        new Date(Date.now()).toISOString()
+      ).end((err) => {
+        if (err) return done(err);
+        done();
       })
   });
 
@@ -297,9 +275,10 @@ describe('[GET] /pages/api/statements', () => {
       .get('/')
       .auth(usr, pw)
       .query({attachments: true})
-      .expect('Content-Type', 'multipart/mixed', done)
-      .catch((err) => {
-        done(err);
+      .expect('Content-Type', 'multipart/mixed')
+      .end((err) => {
+        if (err) return done(err);
+        done();
       });
   });
 
@@ -308,9 +287,10 @@ describe('[GET] /pages/api/statements', () => {
       .get('/')
       .auth(usr, pw)
       .query({attachments: false})
-      .expect('Content-Type', /json/, done)
-      .catch((err) => {
-        done(err);
+      .expect('Content-Type', /json/)
+      .end((err) => {
+        if (err) return done(err);
+        done();
       });
   });
 
@@ -320,7 +300,11 @@ describe('[GET] /pages/api/statements', () => {
     supertest(server)
       .get('/')
       .auth(usr, pw)
-      .expect('Last-Modified', lastMod);
+      .expect('Last-Modified', lastMod)
+      .end((err, res)=> {
+        if (err) return done(err);
+        done();
+      })
   });
 });
 
@@ -348,9 +332,10 @@ describe ('[PUT] /pages/api/statements', () => {
     supertest(server)
       .put('/')
       .send(singleStatement.statement)
-      .expect(404, done)
-      .catch((err) => {
-        done(err);
+      .expect(404)
+      .end((err, res) => {
+        if (err) return done(err);
+        done();
       })
   });
 
@@ -360,9 +345,10 @@ describe ('[PUT] /pages/api/statements', () => {
         .put('/')
         .auth(usr, pw)
         .send(statementCollection.statements)
-        .expect(400, done)
-        .catch((err) => {
-          done(err);
+        .expect(400)
+        .end((err, res) => {
+          if (err) return done(err);
+          done();
         })
   });
 
@@ -371,9 +357,10 @@ describe ('[PUT] /pages/api/statements', () => {
       .put('/')
       .auth(usr, pw)
       .send(singleStatement.conflict)
-      .expect(409, done)
-      .catch((err) => {
-        done(err);
+      .expect(409)
+      .end((err, res) => {
+        if (err) return done(err);
+        done();
       });
   });
 
@@ -382,9 +369,10 @@ describe ('[PUT] /pages/api/statements', () => {
       .put('/')
       .auth(usr, pw)
       .send(singleStatement.statement)
-      .expect(201, done)
-      .catch((err) => {
-        done(err);
+      .expect(201)
+      .end((err, res) => {
+        if (err) return done(err);
+        done();
       });
   });
 });
