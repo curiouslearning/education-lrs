@@ -1,9 +1,8 @@
-'use strict';
+"use strict";
 
-import chai from 'chai'
-import Promise from 'bluebird';
-import chaiAsPromised from 'chai-as-promised'
-import sinonChai from 'sinon-chai'
+import chai from "chai";
+import chaiAsPromised from "chai-as-promised";
+import sinonChai from "sinon-chai";
 
 global.should = chai.should();
 chai.use(chaiAsPromised);

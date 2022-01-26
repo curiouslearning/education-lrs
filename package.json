@@ -1,7 +1,6 @@
 {
-  "private": true,
   "scripts": {
-    "test": "ts-mocha -p tsconfig.json test/**/*.spec.ts --require test/setup.ts",
+    "test": "ts-mocha --watch -p tsconfig.json **/*.spec.ts --require test/setup.ts",
     "dev": "next dev",
     "build": "next build",
     "start": "next start"
