@@ -12,7 +12,11 @@ services:
       sh -c '
         echo "Running tests..."
         npm install
-        npm test
+        if [ "${IS_CI}" = "" ]
+        then
+          npm test
+        fi
+        npm run test-ci
       '
     volumes:
       - ./:/app
