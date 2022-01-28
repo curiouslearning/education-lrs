@@ -3,7 +3,7 @@ import deepEqual from "deep-equal";
 import type { NextRequest, NextResponse } from "next/server";
 import { apiHandler } from "../../helpers/api/api-handler";
 import middleware, { Next } from "../../helpers/api/request-sanitizers";
-import dbClient from "/app/lib/db";
+import dbPool from "/app/lib/db";
 
 const helpers = middleware();
 enum FormatTypes {
@@ -57,30 +57,20 @@ async function runMiddleware(
 
 /******************************GET, HEAD***************************************/
 async function handleGET(req: NextRequest, res: NextResponse): void {
-  try {
-    // await runMiddleware(req, res, sanitizeQueryParams);
-    // await runMiddleware(req, res, validateQueryParams);
-    // await runMiddleware(req, res, cors);
-    await dbClient.connect();
-    const queryOptions = generateQueryParams(req.query);
-    const rows = await dbClient
-      .db("xAPI")
-      .collection("statements")
-      .find(queryOptions.params)
-      .sort(queryOptions.sort)
-      .toArray();
-    rows.forEach((row) => {
-      delete row["_id"]; //_id is a mongoDB parameter outside the scope of xAPI
-    });
-    res.status(200).json({
-      statements: rows,
-      more: "",
-    });
-  } catch (err) {
-    throw err;
-  } finally {
-    await dbClient.close();
-  }
+  (async () => {
+    try {
+      // await runMiddleware(req, res, sanitizeQueryParams);
+      // await runMiddleware(req, res, validateQueryParams);
+      // await runMiddleware(req, res, cors);
+      const res = await dbPool.query("SELECT * FROM statements LIMIT 100");
+      const rows = res.rows;
+      console.log (rows[0]);
+      res.status(200).json({
+        statements: rows,
+        more: "",
+      });
+    }
+  })().catch(err => {console.log(err.stack);});
 }
 
 function generateQueryParams(query: QueryParams = {}): any {
@@ -156,49 +146,46 @@ async function handlePOST(req: NextRequest, res: NextResponse): void {
   if (!req.body) {
     res.status(200).end();
   }
-  try {
-    await dbClient.connect();
-    helpers.sanitizeBody(req, res, (err) => {
-      throw err;
-    });
-    let body = req.body.data;
-    body.forEach((statement) => {
-      statement["stored"] = new Date(Date.now()).toISOString();
-      if (!statement.timestamp) {
-        statement["timestamp"] = statement.stored;
+  (async () => {
+    const client = await dbPool.getClient();
+    try {
+      helpers.sanitizeBody(req, res, (err) => {
+        throw err;
+      });
+      let body = req.body.data;
+      body.forEach((statement) => {
+        statement["stored"] = new Date(Date.now()).toISOString();
+        if (!statement.timestamp) {
+          statement["timestamp"] = statement.stored;
+        }
+      });
+      body = helpers.createStatementID(body, res, (err) => {
+        throw err;
+      });
+      req.body.data = body;
+      const ids = body.map((statement) => statement.id);
+      let result;
+      await client.query("BEGIN");
+      const text = "INSERT INTO statements(id, actor, verb, object, context, result, timestamp) VALUES($1, $2, $3, $4 $5 $6 $7) RETURNING id";
+      req.body.data.forEach((statement) => {
+        const {id, actor, verb, object, context, result, timestamp} = statement;
+        client.query(text, [id, actor, object, context, result, timestamp]);
+      });
+      await client.query('COMMIT');
+      res.status(200).send(ids);
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw e;
+      if (err.name === "MongoServerError") {
+        if (err.code === 11000) {
+          return await runDupeCheck(req, res, err);
+        }
       }
-    });
-    body = helpers.createStatementID(body, res, (err) => {
       throw err;
-    });
-    req.body.data = body;
-    const ids = body.map((statement) => statement.id);
-    let result;
-    if (body.length > 1) {
-      result = await dbClient
-        .db("xAPI")
-        .collection("statements")
-        .insertMany(body);
-    } else {
-      result = await dbClient
-        .db("xAPI")
-        .collection("statements")
-        .insertOne(body[0]);
+    } finally {
+      await client.release();
     }
-    if (result.insertedCount == 0) {
-      throw "failed to record statement";
-    }
-    res.status(200).send(ids);
-  } catch (err) {
-    if (err.name === "MongoServerError") {
-      if (err.code === 11000) {
-        return await runDupeCheck(req, res, err);
-      }
-    }
-    throw err;
-  } finally {
-    await dbClient.close();
-  }
+  })().catch(e => {console.error(e.stack);})
 }
 async function runDupeCheck(req, res, err) {
   const original = await dbClient

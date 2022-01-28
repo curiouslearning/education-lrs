@@ -1,9 +1,9 @@
-import { MongoClient } from "mongodb";
-import { mongoDBURI } from "/app/config";
+import { Client, Pool } from "pg";
+import { clientConfig } from "/app/config";
 
-const options = {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-};
+const pool = new Pool(clientConfig);
 
-export default new MongoClient(mongoDBURI, options);
+module.exports = {
+  query: (text, params) => {pool.query(text, params);},
+  getClient: () => {return pool.connect()}
+}
