@@ -1,9 +1,6 @@
-import { MongoClient } from "mongodb";
-import { mongoDBURI } from "/app/config";
+import { Pool, Client } from 'pg';
+const connectionString = process.env.DATABASE_URL;
 
-const options = {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-};
+const dbClient = new Client({connectionString});
 
-export default new MongoClient(mongoDBURI, options);
+export default dbClient;

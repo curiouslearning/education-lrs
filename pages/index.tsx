@@ -1,5 +1,4 @@
 import Head from 'next/head'
-import clientPromise from '../lib/mongodb'
 
 export default function Home({ isConnected }) {
   return (
@@ -14,13 +13,13 @@ export default function Home({ isConnected }) {
           Welcome to <a href="https://oer.dev/lrs">openLRS!</a>
         </h1>
 
-        
+
         <p className="description">
           The openLRS service is under development!
         </p>
 
         <div className="grid">
-          
+
         </div>
       </main>
 
@@ -187,12 +186,12 @@ export default function Home({ isConnected }) {
   )
 }
 
-export async function getServerSideProps(context) {
-  const client = await clientPromise
-
-  const isConnected = await client.isConnected()
-
-  return {
-    props: { isConnected },
-  }
-}
+// export async function getServerSideProps(context) {
+//   const client = await clientPromise
+//
+//   const isConnected = await client.isConnected()
+//
+//   return {
+//     props: { isConnected },
+//   }
+// }
