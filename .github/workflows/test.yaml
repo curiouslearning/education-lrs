@@ -1,3 +1,4 @@
+# should run on all branches on push
 name: test
 on: push
 jobs:
