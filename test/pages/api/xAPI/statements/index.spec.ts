@@ -6,15 +6,16 @@ import {
 import dbClient from "../../../../../lib/db";
 import handlers from "../../../../../pages/api/xAPI/statements/index";
 import { testServer } from "../../../../server";
+
 const usr = "test-user";
 const pw = "test-password";
 
 beforeEach(async () => {
+  // reset db
   await dbClient.agentAccount.deleteMany({});
   await dbClient.activityProfile.deleteMany({});
   await dbClient.agentProfile.deleteMany({});
   await dbClient.statement.deleteMany({});
-  // reset db
 });
 
 describe("[POST] /pages/xAPI/statements", () => {

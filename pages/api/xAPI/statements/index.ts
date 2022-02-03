@@ -3,6 +3,7 @@ import deepEqual from "deep-equal";
 import type { NextRequest, NextResponse } from "next/server";
 import { apiHandler } from "../../helpers/api/api-handler";
 import middleware, { Next } from "../../helpers/api/request-sanitizers";
+import dbClient from "../../../../lib/db";
 import * as statementsModel from "../../../../models/statements";
 import { Prisma } from "@prisma/client";
 
