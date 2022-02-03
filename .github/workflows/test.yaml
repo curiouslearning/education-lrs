@@ -1,6 +1,9 @@
 # should run on all branches on push
 name: test
-on: [push, pull_request]
+on:  
+  push:
+    branches:
+      - '**'
 jobs:
   test:
     runs-on: ubuntu-18.04
