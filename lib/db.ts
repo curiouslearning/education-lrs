@@ -1,6 +1,4 @@
-import { Pool, Client } from 'pg';
-const connectionString = process.env.DATABASE_URL;
+import { PrismaClient } from "@prisma/client";
 
-const dbClient = new Client({connectionString});
-
+let dbClient = new PrismaClient()
 export default dbClient;
