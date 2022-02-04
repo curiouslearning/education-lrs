@@ -1,18 +1,18 @@
 import dbClient from "../lib/db";
 
-async function addRows(rows) {
+export async function add(statements) {
   const inserts = await dbClient.$transaction(
-    rows.map((row) => dbClient.statement.create({ data: row }))
+    statements.map((statement) => dbClient.statement.create({ data: statement }))
   );
   return inserts.map((statement) => statement.id);
 }
 
-async function all() {
+export async function all() {
   const rows = await dbClient.statement.findMany();
   return rows.map((row) => row.statement);
 }
 
-async function getByIDs(ids) {
+export async function getByIDs(ids) {
   return await dbClient.statement.findMany({
     select: { statement: true },
     where: { id: { in: ids } },
