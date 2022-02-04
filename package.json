@@ -2,11 +2,7 @@
   "scripts": {
     "test": "ts-mocha --watch --watch-extensions ts -p tsconfig.json **/*.spec.ts",
     "test-ci": "ts-mocha -p tsconfig.json **/*.spec.ts",
-    "dev": "dotenv -e .env.development next dev",
-    "build": "next build",
-    "start": "next start",
-    "migrate:dev": "dotenv -e .env.development -- npx prisma migrate dev --name init",
-    "migrate:test": "dotenv -e .env.test -- npx prisma migrate dev --name init"
+    "migrate": "dotenv -- npx prisma migrate dev --name init"
   },
   "dependencies": {
     "@prisma/client": "^3.9.0",
