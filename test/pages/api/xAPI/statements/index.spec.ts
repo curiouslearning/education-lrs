@@ -3,7 +3,7 @@ import {
   singleStatement,
   statementCollection,
 } from "../../../fixtures.json";
-import dbClient from "../../../../../lib/client";
+import dbClient from "../../../../../lib/db";
 import handlers from "../../../../../pages/api/xAPI/statements/index";
 import { testServer } from "../../../../server";
 const usr = "test-user";
