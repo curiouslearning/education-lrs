@@ -1,9 +1,5 @@
-# should run on all branches on push
 name: test
-on:  
-  push:
-    branches:
-      - '**'
+on: push
 jobs:
   test:
     runs-on: ubuntu-18.04
