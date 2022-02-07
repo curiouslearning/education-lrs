@@ -3,6 +3,7 @@ import deepEqual from "deep-equal";
 import type { NextRequest, NextResponse } from "next/server";
 import { apiHandler } from "../../helpers/api/api-handler";
 import middleware, { Next } from "../../helpers/api/request-sanitizers";
+import * as statementsModel from "../../../../models/statements";
 import dbClient from "../../../../lib/db";
 import { Prisma } from "@prisma/client";
 
@@ -64,12 +65,9 @@ async function handleGET(req: NextRequest, res: NextResponse): void {
     // await runMiddleware(req, res, cors);
     helpers.validateQueryParams(req, res, (err) => {if (err) throw err});
     const queryOptions = generateQueryParams(req.query);
-    const rows = await dbClient
-      .statement
-      .findMany();
-    const statements = rows.map((row) => row.statement);
+    const statements = await statementsModel.all();
     res.status(200).json({
-      statements: statements,
+      statements,
       more: "",
     });
   } catch (err) {
@@ -185,10 +183,7 @@ async function handlePOST(req: NextRequest, res: NextResponse): void {
       throw err;
     });
     req['rows'] = rows;
-    const inserts = await dbClient.$transaction(
-      rows.map((row) => dbClient.statement.create({data: row}))
-    );
-    const ids = inserts.map((statement) => statement.id);
+    const ids = await statementsModel.add(rows);
     res.status(200).send(ids);
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError) {
@@ -202,9 +197,7 @@ async function handlePOST(req: NextRequest, res: NextResponse): void {
 }
 async function runDupeCheck(req, res, err) {
   const requestIds = req.rows.map((element) => element.id);
-  const dupes = await dbClient
-    .statement
-    .findMany({select: {statement: true}, where: {id:{ in: requestIds}}})
+  const dupes = await statementsModel.getByIDs(requestIds);
   const conflicts = dupes.map((dupe) => {
     const conflict = req.rows.find((elem) => elem.statement.id === dupe.statement.id);
     if(conflict){
